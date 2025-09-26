@@ -8,7 +8,7 @@ wheels/
 
 # Too big to upload to github
 data/
-gpt2-wikipedia/
+gpt2_wikipedia/
 
 # Virtual environments
 .venv
