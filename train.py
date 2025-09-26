@@ -70,9 +70,3 @@ for n_dataset in range(N):
     model.save_pretrained("gpt2_wikipedia/backup")
     if n_dataset % 10 == 9:
         trainer.push_to_hub(f"dataset number {n_dataset}")
-
-# ==============================
-# ✅ まとめ
-# - Lossが下がることを見て学習が進む実感を得られる
-# - 学習後に日本語っぽい文章が出てくる
-# - 小さな「事前学習体験」をスマホからでも実行できる！
