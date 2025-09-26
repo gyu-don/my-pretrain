@@ -25,7 +25,7 @@ html = resp.text
 text = re.sub(r'<[^>]+>', '', html)
 text = re.sub(r"\r", "", text)
 text = re.sub(r"\n{2,}", "\n", text)
-open('data_text_aozora.txt', 'w', encoding='utf-8').write(text)
+open('data/data_text_aozora.txt', 'w', encoding='utf-8').write(text)
 print('サンプルテキスト保存。文字数=', len(text))
 
 # ==============================
@@ -39,7 +39,7 @@ print('語彙サイズ:', tokenizer.vocab_size)
 # セル 5: データを数字化
 # ==============================
 from datasets import Dataset
-with open('data_text_aozora.txt', 'r', encoding='utf-8') as f:
+with open('data/data_text_aozora.txt', 'r', encoding='utf-8') as f:
     raw = f.read()
 
 encodings = tokenizer(raw, return_tensors='pt', add_special_tokens=False, truncation=True, max_length=80000)
@@ -67,7 +67,7 @@ print('モデルを読み込みました')
 from transformers import Trainer, TrainingArguments
 
 training_args = TrainingArguments(
-    output_dir='./gpt2_aozora',
+    output_dir='./gpt2_wikipedia',
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,
     num_train_epochs=1,     # まずは1エポック
