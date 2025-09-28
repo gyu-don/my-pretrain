@@ -1,26 +1,22 @@
 import torch
+from datasets import Dataset, load_dataset
+from transformers import GPT2Config, GPT2TokenizerFast, GPT2LMHeadModel, Trainer, TrainingArguments
 print('Torch バージョン:', torch.__version__)
 print('GPUが使えるか:', torch.cuda.is_available())
-if torch.cuda.is_available():
-    print('GPUの名前:', torch.cuda.get_device_name(0))
 
-from transformers import GPT2TokenizerFast
+config = GPT2Config.from_pretrained('gpt2')
 tokenizer = GPT2TokenizerFast.from_pretrained('gpt2')
 tokenizer.pad_token = tokenizer.eos_token
-print('語彙サイズ:', tokenizer.vocab_size)
+model = GPT2LMHeadModel(config)
 
-from transformers import GPT2LMHeadModel
-model = GPT2LMHeadModel.from_pretrained('gpt2')
-print('モデルを読み込みました')
+print(f"{tokenizer.model_max_length = }")
 
-from datasets import Dataset, load_dataset
-from transformers import Trainer, TrainingArguments
 
 training_args = TrainingArguments(
-    output_dir='./gpt2_wikipedia',
+    output_dir='./gpt2_aozora',
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,
-    num_train_epochs=1,     # まずは1エポック
+    num_train_epochs=1,
     learning_rate=5e-5,
     fp16=torch.cuda.is_available(),
     logging_steps=50,
@@ -36,37 +32,29 @@ def data_collator(features):
     return {'input_ids': input_ids, 'attention_mask': attention_mask, 'labels': labels}
 
 
-N = 19913
-for n_dataset in range(N):
-    with open(f"data/data_text_wikipedia_{n_dataset:05}") as f:
-        raw = f.read()
-    encodings = tokenizer(raw, return_tensors='pt', add_special_tokens=False)
-    input_ids = encodings['input_ids'][0]
+dataset = load_dataset(
+    "globis-university/aozorabunko-clean",
+)["train"].filter(
+    lambda example: example['meta']['文字遣い種別'] == '新字新仮名',
+).map(
+    lambda examples: tokenizer(examples["text"], return_attention_mask=True, truncation=True, max_length=tokenizer.model_max_length, padding=True),
+    batched=True,
+    remove_columns=["text", "meta", "footnote"],
+)
 
-    block_size = 128
-    examples = []
-    for i in range(0, input_ids.size(0) - block_size + 1, block_size):
-        block = input_ids[i:i+block_size]
-        examples.append({'input_ids': block.tolist(), 'attention_mask': [1]*block_size})
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=dataset,
+    data_collator=data_collator,
+)
+trainer.train()
 
-    dataset = Dataset.from_list(examples)
-    
-    trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=dataset,
-        data_collator=data_collator,
-    )
-    trainer.train()
-
-    print(f"dataset: {n_dataset}")
-    prompt = "私は"
-    inputs = tokenizer(prompt, return_tensors='pt').to(model.device)
-    input_ids = inputs["input_ids"]
-    attention_mask = inputs["attention_mask"]
-    out = model.generate(input_ids, max_length=80, do_sample=True, top_k=50, top_p=0.95, attention_mask=attention_mask, pad_token_id=tokenizer.pad_token_id)
-    print("生成された文章:")
-    print(tokenizer.decode(out[0], skip_special_tokens=True))
-    model.save_pretrained("gpt2_wikipedia/backup")
-    if n_dataset % 10 == 9:
-        trainer.push_to_hub(f"dataset number {n_dataset}")
+prompt = "私は"
+inputs = tokenizer(prompt, return_tensors='pt').to(model.device)
+input_ids = inputs["input_ids"]
+attention_mask = inputs["attention_mask"]
+out = model.generate(input_ids, max_length=80, do_sample=True, top_k=50, top_p=0.95, attention_mask=attention_mask, pad_token_id=tokenizer.pad_token_id)
+print("生成された文章:")
+print(tokenizer.decode(out[0], skip_special_tokens=True))
+model.push_to_hub(repo_id="gyu-don/gpt2_aozora")
