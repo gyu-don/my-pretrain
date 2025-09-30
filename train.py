@@ -11,9 +11,28 @@ model = GPT2LMHeadModel(config)
 
 print(f"{tokenizer.model_max_length = }")
 
+train_data = "wikipedia"
+
+if train_data == "aozora":
+    output_dir = "./gpt2_aozora"
+    dataset = load_dataset(
+        "globis-university/aozorabunko-clean",
+    )["train"].filter(
+        lambda example: example['meta']['文字遣い種別'] == '新字新仮名',
+    )
+    repo_id = "gyu-don/gpt2_aozora"
+    remove_columns = ["text", "meta", "footnote"]
+elif train_data == "wikipedia":
+    output_dir = "./gpt2_aozora"
+    dataset = load_dataset("llm-book/japanese-wikipedia")["train"]
+    repo_id = "gyu-don/gpt2_wikipedia"
+    remove_columns = ["text", "meta"]
+else:
+    raise ValueError(f"unknown {train_data = }")
+
 
 training_args = TrainingArguments(
-    output_dir='./gpt2_aozora',
+    output_dir=output_dir,
     per_device_train_batch_size=2,
     gradient_accumulation_steps=4,
     num_train_epochs=1,
@@ -32,20 +51,16 @@ def data_collator(features):
     return {'input_ids': input_ids, 'attention_mask': attention_mask, 'labels': labels}
 
 
-dataset = load_dataset(
-    "globis-university/aozorabunko-clean",
-)["train"].filter(
-    lambda example: example['meta']['文字遣い種別'] == '新字新仮名',
-).map(
+train_dataset = dataset.map(
     lambda examples: tokenizer(examples["text"], return_attention_mask=True, truncation=True, max_length=tokenizer.model_max_length, padding=True),
     batched=True,
-    remove_columns=["text", "meta", "footnote"],
+    remove_columns=remove_columns,
 )
 
 trainer = Trainer(
     model=model,
     args=training_args,
-    train_dataset=dataset,
+    train_dataset=train_dataset,
     data_collator=data_collator,
 )
 trainer.train()
@@ -57,4 +72,4 @@ attention_mask = inputs["attention_mask"]
 out = model.generate(input_ids, max_length=80, do_sample=True, top_k=50, top_p=0.95, attention_mask=attention_mask, pad_token_id=tokenizer.pad_token_id)
 print("生成された文章:")
 print(tokenizer.decode(out[0], skip_special_tokens=True))
-model.push_to_hub(repo_id="gyu-don/gpt2_aozora")
+model.push_to_hub(repo_id=repo_id)
