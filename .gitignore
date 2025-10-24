@@ -10,6 +10,7 @@ wheels/
 data/
 gpt2_wikipedia/
 gpt2_aozora/
+gpt2_wikipedia_aozora/
 
 # Virtual environments
 .venv

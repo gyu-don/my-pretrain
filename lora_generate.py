@@ -1,7 +1,14 @@
 from transformers import GPT2TokenizerFast, GPT2LMHeadModel
+from peft import PeftConfig, PeftModel
+
 tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
-#model = GPT2LMHeadModel.from_pretrained("gpt2")
-model = GPT2LMHeadModel.from_pretrained("./gpt2_wikipedia")
+tokenizer.pad_token = tokenizer.eos_token
+
+lora_name = "gpt2_wikipedia_aozora"
+
+config = PeftConfig.from_pretrained(f"gyu-don/{lora_name}")
+orig_model = GPT2LMHeadModel.from_pretrained(config.base_model_name_or_path)
+model = PeftModel.from_pretrained(orig_model, lora_name)
 
 prompt = "牛丼"
 inputs = tokenizer(prompt, return_tensors='pt').to(model.device)
